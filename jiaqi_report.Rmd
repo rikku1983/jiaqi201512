@@ -1,47 +1,51 @@
 ---
-title: "Jiaqi"
+title: "Jiaqi report"
 author: "Li Sun"
 date: "October 12, 2015"
 output: html_document
 ---
 
 # Load packages
-```{r}
+load necessary packages
+```{r, echo=FALSE, results='hide', message=FALSE}
 suppressWarnings(library(dplyr))
 suppressWarnings(library(ggplot2))
 suppressWarnings(library(gplots))
 suppressWarnings(library(RColorBrewer))
 suppressWarnings(library(lsr))
-suppressWarnings(library(ICC))
-suppressWarnings(library(lme4))
+suppressWarnings(library(xtable))
+# suppressWarnings(library(lme4))
 suppressWarnings(library(car))
+suppressWarnings(library(knitr))
 ```
 
 
 # Load data
-```{r}
-setwd("C:/Users/user/Dropbox/jiaqi")
+Data comes from Dr. Jiaqi Li in csv file.
+```{r, echo=FALSE, message=FALSE}
+# setwd("C:/Users/user/Dropbox/jiaqi")
 setwd("/home/li/Dropbox/jiaqi")
 raw <- read.csv("Dissertation_Survey.csv", stringsAsFactors=FALSE)
 #Select only needed variables
-df <- raw[, c(18,19, 12,13,14,15,16,17,20, 43:46,47, 65:74)]
-names(df) <- c("if_counseled", "whynot", "gender", "age", "degree", "stay","marital","religion","english", "sla1", "sla2", "sla3", "sla4", "sla_id", "y1", "y2", "y3", "y4", "y5", "y6", "y7", "y8", "y9", "y10")
+df <- raw[, c(12,13,14,15,16,17, 43:46,47, 65:74)]
+names(df) <- c("gender", "age", "degree", "stay","marital","religion", "sla1", "sla2", "sla3", "sla4", "sla_id", "y1", "y2", "y3", "y4", "y5", "y6", "y7", "y8", "y9", "y10")
 ```
 
 # Data cleaning
-
-1. variables needed to be edited: 'age', 'stay', 'english'
+1. variables needed to be edited: 'age', 'stay'
 There is one value which is "adult", we change that one to 18, according to the info that he has 89 TOFLE score and stayed in US for 18 month. We change this to 25, which is average age of F1 student who came here after undergraduate (23.5) and master study(26.5). There is also another invalid entry which is 3. We believe it is imput error. and change it to 30
 For stay, there is an entry which is "whole life", we change that to 12 * age.
 
-```{r}
+```{r, echo=FALSE, results='hide', message=FALSE}
 ################### age
-# There is one value which is "adult", we change that one to 18, according to the info that he has 89 TOFLE score and stayed in US for 18 month. We change this to 25, which is average age of F1 student who came here after undergraduate (23.5) and master study(26.5). There is also another invalid entry which is 3. We believe it is imput error. and change it to 30
+df$age
 df$age[df$age=="adult"] <- "25"
 df$age[df$age==" "] <- NA
 df$age <- as.numeric(df$age)
+df$age[df$age==3] <- 30
 
 ################### stay
+df$stay
 wlidx <- df$stay=="Whole Life"
 df$stay[df$stay == " "] <- NA
 df$stay<- gsub("months?", "", df$stay)
@@ -55,75 +59,27 @@ for(i in seq(df$stay)){
 df$stay <- as.numeric(gsub(" ", "", df$stay))
 # The value "whole life" is change to the person's age times 12
 df$stay[wlidx] <- df$age[wlidx] * 12
-
-################## english
-df$english
-eng <- df$english
-eng <- gsub("\\D*([0-9.-]*)\\D*", "\\1", eng)
-data.frame(ori=df$english, new=eng)
-# convert the IELTS score to TOEFL score according to 'https://www.ets.org/toefl/institutions/scores/compare/'
-eng[grep("6.5", eng)] <- "79"
-# Convert all non-sense value (ex. "65-120", "0", "") to NA
-eng[eng=="0"|eng=="65-120"|eng==""] <- NA
-# remove any characters after "-" in order to convert this to numeric
-eng <- gsub("-.*", "", eng)
-eng <- as.numeric(eng)
-hist(eng, col="blue", breaks=100, ylab = "counts", xlab="TOEFL Score", main = "English Proficiency")
-
-# We do see three different types of test been reported here. So lets convert them to one scale based on IBT
-
-# Convert PBT score to IBT score
-eng2<-numeric()
-for(i in seq(eng)){
-  if(is.na(eng[i])){eng2[i]<-NA;next}
-  x<-eng[i]
-  if(x<=120){
-    if(x >= 111){eng2[i] <- "111-120"}
-    else if(x>=96){eng2[i] <- "96-110"}
-    else if(x>=79){eng2[i] <- "79-95"}
-    else if(x>=65){eng2[i] <- "65-78"}
-    else if(x < 65){eng2[i] <- "0-65"}
-  }
-  else if(eng[i] <=450){
-    if(x >= 273){eng2[i] <- "111-120"}
-    else if(x>=243){eng2[i] <- "96-110"}
-    else if(x>=213){eng2[i] <- "79-95"}
-    else if(x>=183){eng2[i] <- "65-78"}
-    else if(x < 183){eng2[i] <- "0-65"}
-  }
-  else{
-    if(x >= 640){eng2[i] <- "111-120"}
-    else if(x>=590){eng2[i] <- "96-110"}
-    else if(x>=550){eng2[i] <- "79-95"}
-    else if(x>=513){eng2[i] <- "65-78"}
-    else if(x < 513){eng2[i] <- "0-65"}
-  }
-}
-data.frame(ori=df$english, new2=eng2)
-table(eng2)
-df$english <- eng2
 ```
 
 2. Construct new variable "SL-ASIA values score" ("SLval"), based on the SUINN-LEW ASIA SCALE (question 22~23)
 coding:
 1. Do not believe ...... 5. strongly believe
-
-```{r}
+```{r, echo=FALSE, message=FALSE}
 df$SLval <- rep(0, nrow(df))
 for(i in 1:nrow(df)){
-  if(is.na(df[i,10])|is.na(df[i,11])){df$SLval[i] <- NA;next}
-  if(df[i,10] <= 2){
-    if(df[i,11] <= 2){df$SLval[i] <- "N"}
-    else if(df[i, 11] ==3){df$SLval[i] <- "(W)"}
-    else if(df[i, 11] > 3){df$SLval[i] <- "W"}
+  if(is.na(df[i,7])|is.na(df[i,8])){df$SLval[i] <- NA;next}
+  if(df[i,7] <= 2){
+    if(df[i,8] <= 2){df$SLval[i] <- "N"}
+    else if(df[i, 8] ==3){df$SLval[i] <- "(W)"}
+    else if(df[i, 8] > 3){df$SLval[i] <- "W"}
   }
-  else if(df[i,10] == 3){
-    if(df[i,11] <= 2){df$SLval[i] <- "(A)"}
-    else if(df[i, 11] ==3){df$SLval[i] <- "(B)"}
-    else if(df[i, 11] > 3){df$SLval[i] <- "W"}
+  else if(df[i,7] == 3){
+    if(df[i,8] <= 2){df$SLval[i] <- "(A)"}
+    else if(df[i, 8] ==3){df$SLval[i] <- "(B)"}
+    else if(df[i, 8] > 3){df$SLval[i] <- "W"}
   }
   else{
-    if(df[i,11] <= 3){df$SLval[i] <- "A"}
+    if(df[i,8] <= 3){df$SLval[i] <- "A"}
     else{df$SLval[i] <- "B"}
   }
 }
@@ -132,58 +88,51 @@ df$SLval4 <- gsub("[()]", "", df$SLval)
 table(df$SLval4)
 ```
 
-Construct new variable "SL-ASIA behavioral competencies score" ("SLcom"), based on the SUINN-LEW ASIA SCALE (question 24~25)
+3. Construct new variable "SL-ASIA behavioral competencies score" ("SLcom"), based on the SUINN-LEW ASIA SCALE (question 24~25)
 1. do not fit ......  5. fit very well
-
-```{r}
+```{r, echo=FALSE, message=FALSE}
 df$SLcom <- rep(0, nrow(df))
 for(i in 1:nrow(df)){
-  if(is.na(df[i,12])|is.na(df[i,13])){df$SLcom[i] <- NA;next}
-  if(df[i,12] <= 2){
-    if(df[i,13] <= 2){df$SLcom[i] <- "N"}
-    else if(df[i, 13] ==3){df$SLcom[i] <- "(W)"}
-    else if(df[i, 13] > 3){df$SLcom[i] <- "W"}
+  if(is.na(df[i,9])|is.na(df[i,10])){df$SLcom[i] <- NA;next}
+  if(df[i,9] <= 2){
+    if(df[i,10] <= 2){df$SLcom[i] <- "N"}
+    else if(df[i, 10] ==3){df$SLcom[i] <- "(W)"}
+    else if(df[i, 10] > 3){df$SLcom[i] <- "W"}
   }
-  else if(df[i,12] == 3){
-    if(df[i,13] <= 2){df$SLcom[i] <- "(A)"}
-    else if(df[i, 13] ==3){df$SLcom[i] <- "(B)"}
-    else if(df[i, 13] > 3){df$SLcom[i] <- "W"}
+  else if(df[i,9] == 3){
+    if(df[i,10] <= 2){df$SLcom[i] <- "(A)"}
+    else if(df[i, 10] ==3){df$SLcom[i] <- "(B)"}
+    else if(df[i, 10] > 3){df$SLcom[i] <- "W"}
   }
   else{
-    if(df[i,13] <= 3){df$SLcom[i] <- "A"}
+    if(df[i,10] <= 3){df$SLcom[i] <- "A"}
     else{df$SLcom[i] <- "B"}
   }
 }
 ### If you only want 4 groups with no "()"
 df$SLcom4 <- gsub("[()]", "", df$SLcom)
 table(df$SLcom4)
-table(df[,c(26,28)])
+table(df[,c(23,25)])
 ```
 
-Construct new variable "SL-ASIA self-identity score" ("sla_id"), based on the SUINN-LEW ASIA SCALE (question 24~25)
+4. Construct new variable "SL-ASIA self-identity score" ("sla_id"), based on the SUINN-LEW ASIA SCALE (question 26)
 coding
-26
 1. I consider myself basically an Asian person (e.g., Chinese, Japanese, Korean, Vietnamese, etc.). Even though I live and work in America, I still view myself basically as an Asian person.
 5. I consider myself basically as an American. Even though I have an Asian background and characteristics, I still view myself basically as an American.
 7. I consider myself as an Asian-American, although deep down I always know I am an Asian.
 9. I consider myself as an Asian-American, although deep down, I view myself as an American first.
 10. I consider myself as an Asian-American. I have both Asian and American characteristics, and I view myself as a blend of both.
 
-```{r}
-class(df$sla_id)
-table(df$sla_id)
-```
+We found `r sum(df$sla_id==1, na.rm=T)/sum(!is.na(df$sla_id))` responders chose 1 and there is one value "2" which is not included in coding rubric and we will change it to 9 because 9 is missing here. And as suggested we will treat this variable as numeric. From 1 to 5, 1 is very asian and 5 is very american identification.
 
-We found `r sum(df$sla_id==1, na.rm=T)/sum(!is.na(df$sla_id))` responders chose 1 and there is one value "2" which is not included in coding rubric and we will change it to 9 because 9 is missing here.
-```{r}
-
-class(df$sla_id)
+```{r, echo=FALSE, message=FALSE}
 df$sla_id[df$sla_id==2&!is.na(df$sla_id)] <- 9
 # re-order the factors
 df$sla_id <- factor(as.factor(df$sla_id), levels=c("1", "7", "10", "9", "5"))
+df$sla_id <- as.numeric(df$sla_id)
 ```
 
-Construct new val indicating individual attitude to counseling.
+5. Construct new val indicating individual attitude to counseling.
 for all original question
 values:
 1. strongly disgree
@@ -196,37 +145,40 @@ Bacon, and Fischer, E., and Farina, A. (1995). Attitudes toward seeking psycholo
 professional help: A shortened form and considerations for research. Journal of College Student
 Development, 36, 368-373.
 
-```{r}
+```{r, echo=FALSE, message=FALSE}
 #Reverse several questions' scores
 df$y2 <- 5-df$y2
 df$y4 <- 5-df$y4
 df$y8 <- 5-df$y8
 df$y9 <- 5-df$y9
 df$y10 <- 5-df$y10
-df$y <- rowSums(df[,15:24])
+df$y <- rowSums(df[,12:21])
 hist(df$y, breaks=15, col="light blue", xlab ="scores of attitude seeking professional help")
-
+summary(df$y)
 ```
 
 # Exploratory data analysis
-Visualize the relationship among the 3 scores from "Suinn-Lew Asian Self Identity Acculturation"
+## Visualize the relationship among the 3 scores from "Suinn-Lew Asian Self Identity Acculturation"
 1. Visualize the relationship between different grouping methods of individuals acculturation
-```{r}
+```{r, echo=FALSE, message=FALSE}
 ### Based on 7 groups
 x <- data.frame(val=factor(df$SLval, levels=c("A", "(A)", "N", "B", "(B)", "(W)", "W")), com=factor(df$SLcom, levels=c("A", "(A)", "N", "B", "(B)", "(W)", "W")), id = df$sla_id)
 x2<-x[complete.cases(x),]
-ggplot(data = x2, aes(x = val, y = com, colour=id)) + stat_sum(aes(size = factor(..n..)), geom = "point") + scale_size_discrete(range = c(3, 20)) + labs(title="3 ACCULTURATION SCORES based on 7 groupss", x="SL-ASIA values score", y="SL-ASIA behavioral competencies score", colour = "SL-ASIA self-identity score", size="number of individual")                                                 
+# ggplot(data = x2, aes(x = val, y = com, colour=id)) + stat_sum(aes(size = factor(..n..)), geom = "point") + scale_size_discrete(range = c(3, 20)) + labs(title="3 ACCULTURATION SCORES based on 7 groupss", x="SL-ASIA values score", y="SL-ASIA behavioral competencies score", colour = "SL-ASIA self-identity score", size="number of individual")                                                 
 ### Based on 4 groups
 x <- data.frame(val=factor(df$SLval4, levels=c("A", "N", "B", "W")), com=factor(df$SLcom4, levels=c("A", "N", "B", "W")), id = df$sla_id)
 x2<-x[complete.cases(x),]
-ggplot(data = x2, aes(x = val, y = com, colour=id)) + stat_sum(aes(size = factor(..n..)), geom = "point") + scale_size_discrete(range = c(3, 20))+ labs(title="3 ACCULTURATION SCORES based on 7 groupss", x="SL-ASIA values score", y="SL-ASIA behavioral competencies score", colour = "SL-ASIA self-identity score", size="number of individual")   
+ggplot(data = x2, aes(x = val, y = com, colour=id)) + stat_sum(aes(size = factor(..n..)), geom = "point") + scale_size_discrete(range = c(3, 20))+ labs(title="3 ACCULTURATION SCORES based on 7 groupss", x="SL-ASIA values score", y="SL-ASIA behavioral competencies score", colour = "SL-ASIA self-identity score", size="number of individual")
+
+### Path figuer
 ```
 
-From this two figures, we found asian students tend to purposely maintain their asian value even they have sufficient competence to get into western culture. We also found that the most asian students identify themselves as asian no matter how good they fit in western life.
+We found that the most asian students identify themselves as asian no matter how good they fit in western life.
 
 2. Visualize the relationship between the 3 scores and attitudes for seeking professional counseling.
 This need 
-```{r}
+
+```{r, echo=FALSE, message=FALSE}
 x <- data.frame(val=factor(df$SLval4, levels=c("A", "N", "B", "W")), com=factor(df$SLcom4, levels=c("A", "N", "B", "W")), id = df$sla_id, y=df$y)
 x2<-x[complete.cases(x),]
 # The relationship between our acculturation scores and our response
@@ -235,42 +187,24 @@ ggplot(aes(x=com, y=y, fill=com), data=x2) + geom_boxplot(outlier.colour = "red"
 ggplot(aes(x=as.numeric(id), y=y, colour=id), data=x2) + stat_sum(aes(size = factor(..n..)), geom="point", alpha=0.8) + scale_size_discrete(range = c(5,20))
 
 # Overall plot
-forplotly <- x2
-forplotly <- summarise(group_by(x2, val, com, id), number = n(), y = mean(y))
-## 
+# forplotly <- x2
+# forplotly <- summarise(group_by(x2, val, com, id), number = n(), y = mean(y))
 ```
 3D plot here:
 https://plot.ly/~rikku1983/35/visualization-of-acculturation-and-attitude-for-seeking-professional-counseling/?share_key=0poL7ODE8G2eg9itKxkbs6
 
-Now lets start making data ready for modeling
+## Making data ready for modeling
 1. Missing values
-```{r, echo=FALSE}
+For convenience, we just remove all rows with NAs. We end up having a data with 110 observations and 10 variable.
+
+```{r, echo=FALSE, message=FALSE}
 ## Get rid of unnecessary columns
-df2 <- df[,c(29, 3:8, 26,28, 14)]
-dfwEng <- df[,c(29, 3:9, 26,28, 14)]
-sum(complete.cases(df2))
-## Delete all rows with all NAs
-df3 <- df2[rowSums(!is.na(df2))!=0,]
-missing_palette <- colorRampPalette(c("gray", "black"))(n = 1000)
-heatmap.2(matrix(as.numeric(is.na(df3)), ncol=10), Rowv=NA, Colv=NA, scale = "none", na.rm=F, col=missing_palette, dendrogram="none", trace="none", key=F, margins = c(3, 12))
-table(rowSums(is.na(df3)))
-## According to this table, 89 complete cases and 22 cases with only one missing value, most likely the english. So our strategy is to keep rows with at most 1 missing values
-df4 <- df3[rowSums(is.na(df3))<=1,]
-heatmap.2(matrix(as.numeric(is.na(df4)), ncol=10), Rowv=NA, Colv=NA, scale = "none", na.rm=F, col=missing_palette, dendrogram="none", trace="none", key=F, margins = c(3, 12))
-df4<-df4[complete.cases(df4),]
+df2 <- df[,c(26, 1:6, 23,25, 11)]
+df4<-df2[complete.cases(df2),]
 ```
-Now we have 110 rows and 10 cols with 2 NAs, both in our response of interest. So for our following analysis, we need to use only 110 full cases from this data. 
 
-2. impute nonsense values
-```{r}
-apply(df4, 2, range)
-df4$age[df4$age==3]<-30
-```
-There is one individual with age 3, According to all information from this row. we decide to impute this one to 30. 
-
-3. Convert all variable type to ones ready for analysis
-```{r}
-sapply(df4, class)
+2. Convert all variable type to ones ready for analysis
+```{r,echo=FALSE, message=FALSE}
 #gender
 df4$gender[df4$gender==1] <- "man"
 df4$gender[df4$gender==2] <- "woman"
@@ -289,19 +223,20 @@ df4$religion[df4$religion==1] <- "christian"
 df4$religion[df4$religion==2] <- "atheist"
 df4$religion[df4$religion==3] <- "Buddhist"
 df4$religion <- factor(df4$religion, levels=c("atheist", "christian", "Buddhist"))
-#english
-#df4$english <- factor(df4$english, levels = c("0-65", "65-78", "79-95", "96-110", "111-120"))
 #SLval4
 df4$SLval4 <- factor(df4$SLval4, levels = c("A","N","B","W"))
 #SLcom4
 df4$SLcom4 <- factor(df4$SLcom4, levels = c("A","N","B","W"))
-#sla_id is used as continuous numeric variable
-df4$sla_id <- as.numeric(df4$sla_id)
+
+sapply(df4, class)
 ```
 
 # Analysis of relationship between each variables
+
+## Association between different variables
 In this part, we start to look into relationship between different variables in this table by studying there correlations
-```{r}
+
+```{r, echo=FALSE, message=FALSE}
 panel.hist <- function(x, ...)
 {
   usr <- par("usr"); on.exit(par(usr))
@@ -328,19 +263,21 @@ hist(df4$stay)
 hist(log(df4$age))
 hist(df4$stay^(1/3))
 
-df5 <- mutate(df4, stay=stay^(1/3), age=log(age), sla_id =as.numeric(sla_id))
+df5 <- mutate(df4, stay=stay^(1/3), age=log(age))
 pairs(df5, panel=panel.smooth, diag.panel = panel.hist, lower.panel = panel.cor)
 ```
+
 Compare df4 and df5, the correlation between age and response drop from 0.0075 to 0.0042, and the correlation between stay and response increase from 0.083 to 0.089. Basically, not very significant change were observed. So we will live with non-transformed data.
 Among our predictors, we observe highest correlations between age and marital status (0.55) and, age and degree(0.46). 
 
-Now lets build the effect size matrix.
+Due to the correlations showed in this figuer is just pearson correlation which might not be appropriate for categorical data. So we will build the effect size matrix by using more appropriate measure for different type of data.
+
 for numeric vs numeric: Pearson's correlation is used, absolute value of this r is categorized as followed, Effect size  r
 Small	      0.10
 Medium	    0.30
 Large	      0.50[1][2]
 
-for numeric vs categorical: R square from one-way ANOVA is used
+for numeric vs categorical: R square from one-way ANOVA is taken and the square root value is used so that we can compare it to other effect size
 
 
 for categorical vs categorical: Cramer's V
@@ -349,8 +286,7 @@ df*  small	medium	large
 2	     .07	   .21	  .35
 3	     .06	   .17	  .29
 
-```{r}
-#summary(aov(df4$y~df4$gender));
+```{r, echo=FALSE, message=FALSE}
 corr<-df4[1:10,];corr[,]<-0
 corr <- as.matrix(corr)
 diag(corr) <- 1
@@ -359,113 +295,83 @@ N <- nrow(df4)
 for(i in 1:(ncol(df4)-1)){
   for(j in (i+1):ncol(df4)){
   type <- (class(df4[,i])=="numeric") + (class(df4[,j])=="numeric")
-  print(type)
   if(type==0){
     corr[i,j] <- cramersV(df4[,i], df4[,j])
   }
   else if(type==1){
     if(class(df4[,i])=="numeric"){
       sumsq <- summary(aov(df4[,i]~df4[,j]))[[1]][,2]
-      corr[i,j] <- sumsq[1]/(sumsq[1]+sumsq[2])
+      corr[i,j] <- sqrt(sumsq[1]/(sumsq[1]+sumsq[2]))
     }
     else{
       sumsq <- summary(aov(df4[,j]~df4[,i]))[[1]][,2]
-      corr[i,j] <- sumsq[1]/(sumsq[1]+sumsq[2])
+      corr[i,j] <- sqrt(sumsq[1]/(sumsq[1]+sumsq[2]))
     }
   }
   else{
-    corr[i,j] <- cor(df4[,i], df4[,j])
+    corr[i,j] <- abs(cor(df4[,i], df4[,j]))
   }
   }
 }
-
-# My function of calculating ICC by using random effect model on one response ~ one grouping variable
-# myicc <- function(formu, dat){
-#   model <- lmer(formula = formu, data=dat)
-#   variance <- as.data.frame(VarCorr(model))$vcov
-#   icc <- variance[1]/(variance[1] + variance[2])
-#   return(icc)
-# }
-
-##y~age
-# mgen <- lmer(y~1+(1|gender), data=df4)
-# vargen <- as.data.frame(VarCorr(mgen))$vcov
-# iccgen <- vargen[1]/(vargen[1]+vargen[2])
-# 
-# myicc(y~1+(1|gender), df4)
-# 
-# lm(y~gender, data=df4)
-# icc1 <- 0.4509^2/(0.4509^2+2.637^2)
-# ICCest(gender, y, df4)$ICC
-#agrees
-
-##y~degree
-# mdeg<-lmer(y~1+(1|degree), data=df4)
-# vardeg <- as.data.frame(VarCorr(mdeg))$vcov
-# iccdeg <- vardeg[1]/(vardeg[1]+vardeg[2])
-# 
-# summary(lm(y~degree, data=df4))
-# ICCest(degree, y, df4)$ICC
 ```
-##visualization
-```{r}
+
+Visualizing the association
+
+```{r, echo=FALSE, message=FALSE}
 corr[lower.tri(corr)] <- NA
 rownames(corr) <- colnames(corr)
-corr_palette <- colorRampPalette(c("red", "black","green"))(n = 1000)
-heatmap.2(corr, Rowv=NA, Colv=NA, scale = "none", na.rm=F, col=corr_palette, dendrogram="none", trace="none", key=F, margins = c(3, 12))
+corr_palette <- colorRampPalette(c("black", "red"))(n = 1000)
+heatmap.2(corr, Rowv=NA, Colv=NA, scale = "none", col=corr_palette, dendrogram="none", trace="none", key=F, margins = c(5, 5))
 ```
-
-##multicolinearity
-```{r}
-# df6 <- df4[,-1]
-# multicolin <- numeric()
-# for(i in 1:9){
-#   df7 <- df6[,-i]
-# }
-
-```
-
-
 
 # Fit regression
-## Full model
-```{r}
+1. Model without interaction
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 fm <- lm(y~., df4)
 summary(fm)
 fmstep <- step(fm)
 summary(fmstep)
+```
 
-# model with interactions
+2. Model with interactions
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 fmint <- lm(y~.*., df4)
 summary(fmint)
 fmintstep <- step(fmint)
-# vif(fmintstep)
-
-genderm <- lm(y~gender*., df4)
-summary(genderm)$adj.r.squared
-agem <- lm(y~age*., df4)
-summary(agem)$adj.r.squared
-degreem <- lm(y~degree*., df4)
-summary(degreem)$adj.r.squared
-staym <- lm(y~stay*., df4)
-summary(staym)$adj.r.squared
-maritalm <- lm(y~marital*., df4)
-summary(maritalm)$adj.r.squared
-religionm <- lm(y~religion*., df4)
-summary(religionm)$adj.r.squared
-slval4m <- lm(y~SLval4*., df4)
-summary(slval4m)$adj.r.squared
-slcom4m <- lm(y~SLcom4*., df4)
-summary(slcom4m)$adj.r.squared
-sla_idm <- lm(y~sla_id*., df4)
-summary(sla_idm)$adj.r.squared
+summary(fmintstep)
 ```
+
+Model with all possible interactions after backward selection, has much higher R squared but also much more predictors, and the design matrix is not full rank any more. So colinearity and multicolinearity is brought in. 
+Let's try less interaction. We will try just one variable interacting with all others to see if there would be any improvement of r squared.
+
+
+```{r, echo=FALSE, results='hide', message=FALSE}
+genderm <- lm(y~gender*., df4)
+agem <- lm(y~age*., df4)
+degreem <- lm(y~degree*., df4)
+staym <- lm(y~stay*., df4)
+maritalm <- lm(y~marital*., df4)
+religionm <- lm(y~religion*., df4)
+slval4m <- lm(y~SLval4*., df4)
+slcom4m <- lm(y~SLcom4*., df4)
+sla_idm <- lm(y~sla_id*., df4)
+single_var_int<-data.frame(full_without_int=summary(fm)$adj.r.squared, gender=summary(genderm)$adj.r.squared, age=summary(agem)$adj.r.squared, degree=summary(degreem)$adj.r.squared, stay=summary(staym)$adj.r.squared, marital=summary(maritalm)$adj.r.squared, religion=summary(religionm)$adj.r.squared, SLval4=summary(slval4m)$adj.r.squared, SLcom4=summary(slcom4m)$adj.r.squared, sla_id=summary(sla_idm)$adj.r.squared)
+rownames(single_var_int) <- "adj_r_squared"
+```
+
+```{r, echo=FALSE, message=FALSE}
+single_var_int
+```
+
 We found, when we include interactions of the following 4 variables to all others, we got dramatically boosted the adjusted r squared.
 degree
 stay
 SLval4
 sla_id
-```{r}
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 fmint2 <- lm(y~stay*. + degree*. + SLval4*. + sla_id*., df4)
 summary(fmint2)
 fmint2step <- step(fmint2)
@@ -482,7 +388,12 @@ fmint4 <- lm(y~stay*. + degree*. + sla_id*., df6)
 summary(fmint4)
 fmint4step <- step(fmint4)
 summary(fmint4step)
+```
 
+The following model is from data without SLcom4
+First we try all combinations of the 4 variables interacting with all others from the 4 listed above which gave us best improved adjusted r squared. And all full models are backward selected.
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 ##
 mstay <- lm(y~. + stay:., df6)
 summary(mstay)
@@ -554,9 +465,8 @@ m6 <- lm(y~. + sla_id:. + SLval4:., df6)
 summary(m6)
 m6step <- step(m6)
 summary(m6step)
-
-
 ```
+
 All models we have 
 fmstep: full model without interactions
     all following are with interactions
@@ -568,15 +478,31 @@ mstaystep: with stay interacting with all others
 mdgstep: with degree interacting with all others
 midstep: with sla_id interacting with all others
 mvalstep: with SLval4 interacting with all others
-m_staystep: with stay interacting with all others
-m_dgstep: with degree interacting with all others
-m_idstep: with sla_id interacting with all others
-m_valstep: with SLval4 interacting with all others
+m_staystep: without stay interacting with all others
+m_dgstep: without degree interacting with all others
+m_idstep: without sla_id interacting with all others
+m_valstep: without SLval4 interacting with all others
+m1step: with degree and stay interacting with all others
+m2step: with degree and sla_id interacting with all others
+m3step: with degree and SLval4 interacting with all others
+m4step: with stay and SLval4 interacting with all others
+m5step: with stay and sla_id interacting with all others
+m6step: with SLval4 and sla_id interacting with all others
+sl1step: with sla_id interacting with degree, s
+              tay interacting with SLval4
+              degree interacting with age
+              SLval4 interacting with marital
+              stay interacting with sla_id
+              age interacting with stay
+              age interacting with sla_id
+sl2step: forward select from sl1step
+sl3: remove alias variable from sl2step
+sl4: remove triple interacting variable
 
 ## Compare all models
-```{r}
-aic <- AIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep)
-bic <- BIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep)
+```{r, echo=FALSE, results='hide', message=FALSE}
+aic <- AIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep, m1step, m2step, m3step, m4step, m5step, m6step)
+bic <- BIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep, m1step, m2step, m3step, m4step, m5step, m6step)
 compare <- cbind(aic, bic$BIC)
 compare$adj.rsqr <- rep(0, nrow(bic))
 compare$adj.rsqr[1] <- summary(fmstep)$adj.r.squared
@@ -592,20 +518,21 @@ compare$adj.rsqr[10] <- summary(m_staystep)$adj.r.squared
 compare$adj.rsqr[11] <- summary(m_dgstep)$adj.r.squared
 compare$adj.rsqr[12] <- summary(m_idstep)$adj.r.squared
 compare$adj.rsqr[13] <- summary(m_valstep)$adj.r.squared
-compare[order(compare$df),]
-
-coplot(y~sla_id|degree, df4)
-coplot(y~sla_id|gender, df4)
-coplot(y~sla_id|stay, df4)
-coplot(y~sla_id|SLval4, df4)
-coplot(y~sla_id|marital, df4)
-coplot(y~sla_id|SLcom4, df4)
-coplot(y~sla_id|religion, df4)
-coplot(y~sla_id|age, df4)
-
+compare$adj.rsqr[14] <- summary(m1step)$adj.r.squared
+compare$adj.rsqr[15] <- summary(m2step)$adj.r.squared
+compare$adj.rsqr[16] <- summary(m3step)$adj.r.squared
+compare$adj.rsqr[17] <- summary(m4step)$adj.r.squared
+compare$adj.rsqr[18] <- summary(m5step)$adj.r.squared
+compare$adj.rsqr[19] <- summary(m6step)$adj.r.squared
 ```
 
-According to all models above, I tried to build simpler model with several interactions
+```{r, echo=FALSE, message=FALSE}
+compare
+```
+
+
+So far we have tried different variables interacting with all others, which might bring many irrelevant interactions to compromise our model in BIC values. So what about smaller number of interactions?
+According to all models above, I picked following several interactions
 sla_id and degree
 stay and SLval4
 degree and age
@@ -613,83 +540,56 @@ SLval4 and marital
 stay and sla_id
 age and stay
 age and sla_id
-```{r}
+All of them are maintained in many of above models after backward selection.
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 sl1 <- lm(y~. + sla_id:degree + stay:SLval4 + degree:age + SLval4:marital + stay:sla_id + age:stay + age:sla_id, df4)
 summary(sl1)
 sl1step<-step(sl1)
 summary(sl1step)
 
 compare <- rbind(compare, c(21,AIC(sl1step), BIC(sl1step), summary(sl1step)$adj.r.squared))
-rownames(compare)[14] <- "sl1step"
+rownames(compare)[20] <- "sl1step"
 ```
 
-Try forward selection to see if we can get any more significant interactions
-```{r}
-sl2step <- step(sl1step, fmint$call, direction="forward")
+This new model is better than ones with similar number of variables. Try forward selection to see if we can get any more significant interactions
+```{r, echo=FALSE, results='hide', message=FALSE}
+sl2step <- step(sl1step, lm(y~.*., df6)$call, direction="forward")
 summary(sl2step)
 compare <- rbind(compare, c(33,AIC(sl2step), BIC(sl2step), summary(sl2step)$adj.r.squared))
-rownames(compare)[15] <- "sl2step"
+rownames(compare)[21] <- "sl2step"
 ```
 sl2step looks the best so far, we will adopt this model and further improve it.
 there is a question with this model that the design matrix is not full rank. The variable degreeDoc interacting marital status is linear combination of other variables. So lets remove one variable to make it full rank.
-```{r}
+
+```{r, echo=FALSE, message=FALSE}
 alias(sl2step)
-doc <- as.numeric(df4$degree=="doctoral")
-mar <- as.numeric(df4$marital=="married")
-doc_mar <- doc * mar
-mas <- as.numeric(df4$degree=="master")
-mas_mar <- mas * mar
-cbind(doc, mas, mar, mas_mar, doc_mar,mar-mas_mar)
 ```
 so basically the original variable marital is the same as degreeDocmarital + degreeMasmarital, lets remove marital variable
-```{r}
-sl3 <- lm(y ~ gender + age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay + age:degree:sla_id, df4)
+```{r, echo=FALSE, results='hide', message=FALSE}
+sl3 <- lm(y ~ age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay + age:degree:sla_id, df4)
 summary(sl3)
 compare <- rbind(compare, c(33,AIC(sl3), BIC(sl3), summary(sl3)$adj.r.squared))
-rownames(compare)[16] <- "sl3"
+rownames(compare)[22] <- "sl3"
 ```
 remove 3 variable interaction
-```{r}
+```{r, echo=FALSE, results='hide', message=FALSE}
 sl4 <- lm(y ~ gender + age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay, df4)
 summary(sl4)
 compare <- rbind(compare, c(31 ,AIC(sl4), BIC(sl4), summary(sl4)$adj.r.squared))
-rownames(compare)[17] <- "sl4"
+rownames(compare)[23] <- "sl4"
+```
+Compare all models, model sl3 stands out
+```{r, echo=FALSE}
+kable(compare)
+```
+The best model is based on the criterion above is sl3.
+
+# Results
+```{r, echo=FALSE}
+summary(sl3)
 ```
 
-
-more
-```{r}
-dfwEng$gender[dfwEng$gender==1] <- "man"
-dfwEng$gender[dfwEng$gender==2] <- "woman"
-dfwEng$gender <- factor(dfwEng$gender, levels=c("man", "woman"))
-#degree
-dfwEng$degree[dfwEng$degree == 1] <- "undergraduate"
-dfwEng$degree[dfwEng$degree == 2] <- "master"
-dfwEng$degree[dfwEng$degree == 3] <- "doctoral"
-dfwEng$degree <- factor(dfwEng$degree, levels = c("undergraduate", "master", "doctoral"))
-#marital
-dfwEng$marital[dfwEng$marital==1] <- "single"
-dfwEng$marital[dfwEng$marital==2] <- "married"
-dfwEng$marital <- factor(dfwEng$marital, levels=c("single", "married"))
-#religion
-dfwEng$religion[dfwEng$religion==1] <- "christian"
-dfwEng$religion[dfwEng$religion==2] <- "atheist"
-dfwEng$religion[dfwEng$religion==3] <- "Buddhist"
-dfwEng$religion <- factor(dfwEng$religion, levels=c("atheist", "christian", "Buddhist"))
-#english
-dfwEng$english <- factor(dfwEng$english, levels = c("0-65", "65-78", "79-95", "96-110", "111-120"))
-#SLval4
-dfwEng$SLval4 <- factor(dfwEng$SLval4, levels = c("A","N","B","W"))
-#SLcom4
-dfwEng$SLcom4 <- factor(dfwEng$SLcom4, levels = c("A","N","B","W"))
-
-dfwEng <- dfwEng[complete.cases(dfwEng),]
-
-fitwEng <- lm(y~., dfwEng)
-summary(fitwEng)
-fitwEng2 <- step(fitwEng)
-summary(fitwEng2)
-```
 
 Reference
 1. Jacob Cohen (1988). Statistical Power Analysis for the Behavioral Sciences (second ed.). Lawrence Erlbaum Associates.
