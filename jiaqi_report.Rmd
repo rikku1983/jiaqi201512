@@ -2,7 +2,7 @@
 title: "Jiaqi report"
 author: "Li Sun"
 date: "October 12, 2015"
-output: html_document
+output: pdf_document
 ---
 
 # Load packages
@@ -24,7 +24,7 @@ suppressWarnings(library(knitr))
 Data comes from Dr. Jiaqi Li in csv file.
 ```{r, echo=FALSE, message=FALSE}
 # setwd("C:/Users/user/Dropbox/jiaqi")
-setwd("/home/li/Dropbox/jiaqi")
+# setwd("/home/li/Dropbox/jiaqi")
 raw <- read.csv("Dissertation_Survey.csv", stringsAsFactors=FALSE)
 #Select only needed variables
 df <- raw[, c(12,13,14,15,16,17, 43:46,47, 65:74)]
@@ -168,7 +168,7 @@ x2<-x[complete.cases(x),]
 ### Based on 4 groups
 x <- data.frame(val=factor(df$SLval4, levels=c("A", "N", "B", "W")), com=factor(df$SLcom4, levels=c("A", "N", "B", "W")), id = df$sla_id)
 x2<-x[complete.cases(x),]
-ggplot(data = x2, aes(x = val, y = com, colour=id)) + stat_sum(aes(size = factor(..n..)), geom = "point") + scale_size_discrete(range = c(3, 20))+ labs(title="3 ACCULTURATION SCORES based on 7 groupss", x="SL-ASIA values score", y="SL-ASIA behavioral competencies score", colour = "SL-ASIA self-identity score", size="number of individual")
+ggplot(data = x2, aes(x = val, y = com, colour=id)) + stat_sum(aes(size = factor(..n..)), geom = "point") + scale_size_discrete(range = c(3, 20))+ labs(title="3 ACCULTURATION SCORES based on 7 groupss", x="SL-ASIA values score", y="SL-ASIA behavioral competencies score", colour = "SL-ASIA self-identity score", size="number of individual") + guides(size=FALSE)
 
 ### Path figuer
 ```
@@ -178,17 +178,31 @@ We found that the most asian students identify themselves as asian no matter how
 2. Visualize the relationship between the 3 scores and attitudes for seeking professional counseling.
 This need 
 
-```{r, echo=FALSE, message=FALSE}
+```{r echo=FALSE, message=FALSE, fig.width=6, fig.height=4}
 x <- data.frame(val=factor(df$SLval4, levels=c("A", "N", "B", "W")), com=factor(df$SLcom4, levels=c("A", "N", "B", "W")), id = df$sla_id, y=df$y)
 x2<-x[complete.cases(x),]
 # The relationship between our acculturation scores and our response
-ggplot(aes(x=val, y=y, fill=val), data=x2) + geom_boxplot(outlier.colour = "red", outlier.size = 5)
-ggplot(aes(x=com, y=y, fill=com), data=x2) + geom_boxplot(outlier.colour = "red", outlier.size = 5)
-ggplot(aes(x=as.numeric(id), y=y, colour=id), data=x2) + stat_sum(aes(size = factor(..n..)), geom="point", alpha=0.8) + scale_size_discrete(range = c(5,20))
+ggplot(aes(x=val, y=y, fill=val), data=x2) + geom_boxplot(outlier.colour = "red", outlier.size = 5);
+```
 
-# Overall plot
+```{r echo=FALSE, message=FALSE, fig.width=6, fig.height=4}
+ggplot(aes(x=com, y=y, fill=com), data=x2) + geom_boxplot(outlier.colour = "red", outlier.size = 5);
+```
+
+```{r echo=FALSE, message=FALSE, fig.width=6, fig.height=4}
+ggplot(aes(x=as.numeric(id), y=y, colour=id), data=x2) + stat_sum(aes(size = factor(..n..)), geom="point", alpha=0.8) + scale_size_discrete(range = c(5,20)) +  guides(size=FALSE, colour=FALSE)
 # forplotly <- x2
 # forplotly <- summarise(group_by(x2, val, com, id), number = n(), y = mean(y))
+
+# ANOVA Test
+aovval <- aov(y~SLval4, df)
+summary(aovval)
+aovcom <- aov(y~SLcom4, df)
+summary(aovcom)
+lmid <- lm(y~sla_id, df)
+summary(lmid)
+#Only SLval4 shows significant result
+TukeyHSD(aovval)
 ```
 3D plot here:
 https://plot.ly/~rikku1983/35/visualization-of-acculturation-and-attitude-for-seeking-professional-counseling/?share_key=0poL7ODE8G2eg9itKxkbs6
@@ -224,9 +238,9 @@ df4$religion[df4$religion==2] <- "atheist"
 df4$religion[df4$religion==3] <- "Buddhist"
 df4$religion <- factor(df4$religion, levels=c("atheist", "christian", "Buddhist"))
 #SLval4
-df4$SLval4 <- factor(df4$SLval4, levels = c("A","N","B","W"))
+df4$SLval4 <- factor(df4$SLval4, levels = c("B", "A","N","W"))
 #SLcom4
-df4$SLcom4 <- factor(df4$SLcom4, levels = c("A","N","B","W"))
+df4$SLcom4 <- factor(df4$SLcom4, levels = c("B", "A","N","W"))
 
 sapply(df4, class)
 ```
@@ -319,6 +333,7 @@ Visualizing the association
 
 ```{r, echo=FALSE, message=FALSE}
 corr[lower.tri(corr)] <- NA
+kable(corr)
 rownames(corr) <- colnames(corr)
 corr_palette <- colorRampPalette(c("black", "red"))(n = 1000)
 heatmap.2(corr, Rowv=NA, Colv=NA, scale = "none", col=corr_palette, dendrogram="none", trace="none", key=F, margins = c(5, 5))
@@ -330,8 +345,8 @@ heatmap.2(corr, Rowv=NA, Colv=NA, scale = "none", col=corr_palette, dendrogram="
 ```{r, echo=FALSE, results='hide', message=FALSE}
 fm <- lm(y~., df4)
 summary(fm)
-fmstep <- step(fm)
-summary(fmstep)
+noint <- step(fm)
+summary(noint)
 ```
 
 2. Model with interactions
@@ -339,255 +354,240 @@ summary(fmstep)
 ```{r, echo=FALSE, results='hide', message=FALSE}
 fmint <- lm(y~.*., df4)
 summary(fmint)
-fmintstep <- step(fmint)
-summary(fmintstep)
+allint <- step(fmint)
+summary(allint)
 ```
 
 Model with all possible interactions after backward selection, has much higher R squared but also much more predictors, and the design matrix is not full rank any more. So colinearity and multicolinearity is brought in. 
 Let's try less interaction. We will try just one variable interacting with all others to see if there would be any improvement of r squared.
 
-
-```{r, echo=FALSE, results='hide', message=FALSE}
-genderm <- lm(y~gender*., df4)
-agem <- lm(y~age*., df4)
-degreem <- lm(y~degree*., df4)
-staym <- lm(y~stay*., df4)
-maritalm <- lm(y~marital*., df4)
-religionm <- lm(y~religion*., df4)
-slval4m <- lm(y~SLval4*., df4)
-slcom4m <- lm(y~SLcom4*., df4)
-sla_idm <- lm(y~sla_id*., df4)
-single_var_int<-data.frame(full_without_int=summary(fm)$adj.r.squared, gender=summary(genderm)$adj.r.squared, age=summary(agem)$adj.r.squared, degree=summary(degreem)$adj.r.squared, stay=summary(staym)$adj.r.squared, marital=summary(maritalm)$adj.r.squared, religion=summary(religionm)$adj.r.squared, SLval4=summary(slval4m)$adj.r.squared, SLcom4=summary(slcom4m)$adj.r.squared, sla_id=summary(sla_idm)$adj.r.squared)
-rownames(single_var_int) <- "adj_r_squared"
-```
+3. more parsimoneous model
 
 ```{r, echo=FALSE, message=FALSE}
-single_var_int
-```
-
-We found, when we include interactions of the following 4 variables to all others, we got dramatically boosted the adjusted r squared.
-degree
-stay
-SLval4
-sla_id
-
-```{r, echo=FALSE, results='hide', message=FALSE}
-fmint2 <- lm(y~stay*. + degree*. + SLval4*. + sla_id*., df4)
-summary(fmint2)
-fmint2step <- step(fmint2)
-summary(fmint2step)
-# SLval4 interaction introduce alias columns
-fmint3 <- lm(y~stay*. + degree*. + sla_id*., df4)
-summary(fmint3)
-fmint3step <- step(fmint3)
-summary(fmint3step)
-
-#SLcom4 is introducing alias columns and itself is not almost independent of our y
-df6 <- df4[,-9]
-fmint4 <- lm(y~stay*. + degree*. + sla_id*., df6)
-summary(fmint4)
-fmint4step <- step(fmint4)
-summary(fmint4step)
-```
-
-The following model is from data without SLcom4
-First we try all combinations of the 4 variables interacting with all others from the 4 listed above which gave us best improved adjusted r squared. And all full models are backward selected.
-
-```{r, echo=FALSE, results='hide', message=FALSE}
-##
-mstay <- lm(y~. + stay:., df6)
-summary(mstay)
-mstaystep <- step(mstay)
-summary(mstay)
-
-mdg <- lm(y~. + degree:., df6)
-summary(mdg)
-mdgstep <- step(mdg)
-summary(mdgstep)
-
-mid <- lm(y~. + sla_id:., df6)
-summary(mid)
-midstep <- step(mid)
-summary(midstep)
-
-mval <- lm(y~. + SLval4:., df6)
-summary(mval)
-mvalstep <- step(mval)
-summary(mvalstep)
-
-m_dg <- lm(y~. + stay:. + sla_id:. + SLval4:., df6)
-summary(m_dg)
-m_dgstep <- step(m_dg)
-summary(m_dgstep)
-
-m_stay <- lm(y~. + degree:. + sla_id:. + SLval4:., df6)
-summary(m_stay)
-m_staystep <- step(m_stay)
-summary(m_staystep)
-
-m_id <- lm(y~. + degree:. + stay:. + SLval4:., df6)
-summary(m_id)
-m_idstep <- step(m_id)
-summary(m_idstep)
-
-m_val <- lm(y~. + degree:. + stay:. + sla_id:., df6)
-summary(m_val)
-m_valstep <- step(m_val)
-summary(m_valstep)
-
-## with 2 
-m1 <- lm(y~. + degree:. + stay:., df6)
-summary(m1)
-m1step <- step(m1)
-summary(m1step)
-
-m2 <- lm(y~. + degree:. + sla_id:., df6)
-summary(m2)
-m2step <- step(m2)
-summary(m2step)
-
-m3 <- lm(y~. + degree:. + SLval4:., df6)
-summary(m3)
-m3step <- step(m3)
-summary(m3step)
-
-m4 <- lm(y~. + SLval4:. + stay:., df6)
-summary(m4)
-m4step <- step(m4)
-summary(m4step)
-
-m5 <- lm(y~. + sla_id:. + stay:., df6)
-summary(m5)
-m5step <- step(m5)
-summary(m5step)
-
-m6 <- lm(y~. + sla_id:. + SLval4:., df6)
-summary(m6)
-m6step <- step(m6)
-summary(m6step)
+sl5 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + sla_id:age + sla_id:degree + age:degree + stay:SLval4, df4)
+summary(sl5)
+betint <- step(sl5)
+summary(betint)
 ```
 
 All models we have 
 fmstep: full model without interactions
     all following are with interactions
 fmintstep: with all possible interaction
-fmintstep2: with four variables interacting with all others: degree, stay, SLval4, sla_id
-fmintstep3: with three variables interacting with all others: degree, stay, sla_id
-fmintstep4: with three variables interacting with all others: degree, stay, sla_id, and without variable SLcom4
-mstaystep: with stay interacting with all others
-mdgstep: with degree interacting with all others
-midstep: with sla_id interacting with all others
-mvalstep: with SLval4 interacting with all others
-m_staystep: without stay interacting with all others
-m_dgstep: without degree interacting with all others
-m_idstep: without sla_id interacting with all others
-m_valstep: without SLval4 interacting with all others
-m1step: with degree and stay interacting with all others
-m2step: with degree and sla_id interacting with all others
-m3step: with degree and SLval4 interacting with all others
-m4step: with stay and SLval4 interacting with all others
-m5step: with stay and sla_id interacting with all others
-m6step: with SLval4 and sla_id interacting with all others
-sl1step: with sla_id interacting with degree, s
-              tay interacting with SLval4
-              degree interacting with age
-              SLval4 interacting with marital
-              stay interacting with sla_id
-              age interacting with stay
-              age interacting with sla_id
-sl2step: forward select from sl1step
-sl3: remove alias variable from sl2step
-sl4: remove triple interacting variable
 
 ## Compare all models
+
 ```{r, echo=FALSE, results='hide', message=FALSE}
-aic <- AIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep, m1step, m2step, m3step, m4step, m5step, m6step)
-bic <- BIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep, m1step, m2step, m3step, m4step, m5step, m6step)
-compare <- cbind(aic, bic$BIC)
-compare$adj.rsqr <- rep(0, nrow(bic))
-compare$adj.rsqr[1] <- summary(fmstep)$adj.r.squared
-compare$adj.rsqr[2] <- summary(fmintstep)$adj.r.squared
-compare$adj.rsqr[3] <- summary(fmint2step)$adj.r.squared
-compare$adj.rsqr[4] <- summary(fmint3step)$adj.r.squared
-compare$adj.rsqr[5] <- summary(fmint4step)$adj.r.squared
-compare$adj.rsqr[6] <- summary(mstaystep)$adj.r.squared
-compare$adj.rsqr[7] <- summary(mdgstep)$adj.r.squared
-compare$adj.rsqr[8] <- summary(midstep)$adj.r.squared
-compare$adj.rsqr[9] <- summary(mvalstep)$adj.r.squared
-compare$adj.rsqr[10] <- summary(m_staystep)$adj.r.squared
-compare$adj.rsqr[11] <- summary(m_dgstep)$adj.r.squared
-compare$adj.rsqr[12] <- summary(m_idstep)$adj.r.squared
-compare$adj.rsqr[13] <- summary(m_valstep)$adj.r.squared
-compare$adj.rsqr[14] <- summary(m1step)$adj.r.squared
-compare$adj.rsqr[15] <- summary(m2step)$adj.r.squared
-compare$adj.rsqr[16] <- summary(m3step)$adj.r.squared
-compare$adj.rsqr[17] <- summary(m4step)$adj.r.squared
-compare$adj.rsqr[18] <- summary(m5step)$adj.r.squared
-compare$adj.rsqr[19] <- summary(m6step)$adj.r.squared
+compare<-rbind(c(summary(noint)$df[1], AIC(noint), BIC(noint), summary(noint)$adj.r.squared),
+      c(summary(allint)$df[1], AIC(allint), BIC(allint), summary(allint)$adj.r.squared),
+      c(summary(betint)$df[1], AIC(betint), BIC(betint), summary(betint)$adj.r.squared)
+      )
+colnames(compare) <- c("df", "AIC", "BIC", "Ajusted R2")
+rownames(compare) <- c("no interaction", "all interaction", "some interaction")
 ```
 
 ```{r, echo=FALSE, message=FALSE}
-compare
-```
-
-
-So far we have tried different variables interacting with all others, which might bring many irrelevant interactions to compromise our model in BIC values. So what about smaller number of interactions?
-According to all models above, I picked following several interactions
-sla_id and degree
-stay and SLval4
-degree and age
-SLval4 and marital
-stay and sla_id
-age and stay
-age and sla_id
-All of them are maintained in many of above models after backward selection.
-
-```{r, echo=FALSE, results='hide', message=FALSE}
-sl1 <- lm(y~. + sla_id:degree + stay:SLval4 + degree:age + SLval4:marital + stay:sla_id + age:stay + age:sla_id, df4)
-summary(sl1)
-sl1step<-step(sl1)
-summary(sl1step)
-
-compare <- rbind(compare, c(21,AIC(sl1step), BIC(sl1step), summary(sl1step)$adj.r.squared))
-rownames(compare)[20] <- "sl1step"
-```
-
-This new model is better than ones with similar number of variables. Try forward selection to see if we can get any more significant interactions
-```{r, echo=FALSE, results='hide', message=FALSE}
-sl2step <- step(sl1step, lm(y~.*., df6)$call, direction="forward")
-summary(sl2step)
-compare <- rbind(compare, c(33,AIC(sl2step), BIC(sl2step), summary(sl2step)$adj.r.squared))
-rownames(compare)[21] <- "sl2step"
-```
-sl2step looks the best so far, we will adopt this model and further improve it.
-there is a question with this model that the design matrix is not full rank. The variable degreeDoc interacting marital status is linear combination of other variables. So lets remove one variable to make it full rank.
-
-```{r, echo=FALSE, message=FALSE}
-alias(sl2step)
-```
-so basically the original variable marital is the same as degreeDocmarital + degreeMasmarital, lets remove marital variable
-```{r, echo=FALSE, results='hide', message=FALSE}
-sl3 <- lm(y ~ age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay + age:degree:sla_id, df4)
-summary(sl3)
-compare <- rbind(compare, c(33,AIC(sl3), BIC(sl3), summary(sl3)$adj.r.squared))
-rownames(compare)[22] <- "sl3"
-```
-remove 3 variable interaction
-```{r, echo=FALSE, results='hide', message=FALSE}
-sl4 <- lm(y ~ gender + age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay, df4)
-summary(sl4)
-compare <- rbind(compare, c(31 ,AIC(sl4), BIC(sl4), summary(sl4)$adj.r.squared))
-rownames(compare)[23] <- "sl4"
-```
-Compare all models, model sl3 stands out
-```{r, echo=FALSE}
 kable(compare)
 ```
-The best model is based on the criterion above is sl3.
+# Final model
 
-# Results
+```{r, echo=FALSE, message=FALSE}
+summary(betint)
+par(mfrow=c(2,2))
+plot(betint)
+```
+
+Final formula
+y ~ degree + stay + marital + SLval4 + sla_id + sla_id:age + degree:sla_id + degree:age + stay:SLval4
+
+This indicates
+1. If a chinese student with age 20, undergraduate degree, just arrive US, not married, got "B" as his value, and got "1" in identification, his altitude for seeking professional counseling is predicted to be 27.2091 + 3.21046 - 0.25015 * 20 = 25.41656
+
+2. Effect of degree
+Compare degrees assume all other parameters are the same
+  2.1 the difference of y between master degree and undergraduate degree:
+    -16.28808 + 2.39256 * sla_id + 0.52561 * age
+  2.2 the difference of y between doctor degree and undergraduate degree:
+    -12.67931 + 3.98390 * sla_id + 0.34156 * age
+Visualize it
+
+```{r echo=FALSE, message=FALSE}
+range(df4$age)
+# let x is age, set from 18 to 50
+x <- 18:50
+ym1 <- x * 0.52561 + 2.39256 -16.28808
+ym2 <- x * 0.52561 + (2.39256 * 2 )-16.28808
+ym3 <- x * 0.52561 + (2.39256 * 3 )-16.28808
+ym4 <- x * 0.52561 + (2.39256 * 4 )-16.28808
+ym5 <- x * 0.52561 + (2.39256 * 5 )-16.28808
+# mas <- cbind(x,ym1,ym2,ym3,ym4,ym5)
+
+yd1 <- x * 0.34156 + 3.98390 -12.67931
+yd2 <- x * 0.34156 + (3.98390 * 2 )-12.67931
+yd3 <- x * 0.34156 + (3.98390 * 3 )-12.67931
+yd4 <- x * 0.34156 + (3.98390 * 4 )-12.67931
+yd5 <- x * 0.34156 + (3.98390 * 5 )-12.67931
+# doc <- cbind(x,yd1,yd2,yd3,yd4,yd5)
+id1 <- cbind(x, ym1, yd1)
+id2 <- cbind(x, ym2, yd2)
+id3 <- cbind(x, ym3, yd3)
+id4 <- cbind(x, ym4, yd4)
+id5 <- cbind(x, ym5, yd5)
+agedf <- as.data.frame(rbind(id1,id2,id3,id4,id5))
+agedf$id <- rep(c("id=1", "id=2", "id=3", "id=4", "id=5"), each=33)
+names(agedf) <- c("age", "master", "doctor", "SLA_id")
+# ageplot <- as.data.frame(rbind(mas, doc))
+# ageplot$dg <- rep(c("master", "doctoral"), each=length(x)) 
+# names(ageplot) <- c("age", "id1", "id2", "id3","id4","id5", "degree")
+page <- ggplot(data=agedf) + geom_line(aes(x=age, y=master, colour = "master")) + facet_grid(. ~ SLA_id) + geom_line(aes(x=age, y=doctor, colour="doctor")) + labs(y="change in y") + guides(colour=guide_legend(title= NULL))
+page
+```
+
+2. Effect of stay length(in month) in US
+  3.1 For people with Asian Value (got "A" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.01368
+  3.2 For people with Bicultural value (got "B" from question 22 and 23): every one more month people has stayed in US will increase the y value by 0.03273
+  3.3 For people with Western value (got "W" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.0539
+  3.4 For people with neither value (got "N" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.116628
+
+
+
+3. married people tend to be less willing for seeking professional counseling, because when all other variable are the same, married people would have 1.56708 less in y value
+
+4. Compare different values
+  4.1 the difference of y between W and A:
+    3.487880 - 0.040218 * stay
+  4.2 the difference of y between B and A:
+    -0.685641 + 0.046410 * stay
+  4.3 the difference of y between N and A:
+    3.832049 - 0.102949 * stay
+    
+visualize effect of stay and values on changes of y comparing with y given value is "B" and stay=0,  and all other variables are the same
+
+```{r, echo=FALSE, message=FALSE}
+x <- 0:300
+ya <- (0.03273 - 0.04641) * x + 0.68564
+yb <- 0.03273 * x
+yn <- (0.03273 - 0.14936) * x + 4.51769
+yw <- (0.03273 - 0.08663) * x + 4.17352
+staydf <- data.frame(stay = rep(x, 4), deltay <- c(ya, yb, yn, yw), val=rep(c("A", "B", "N", "W"), each=301))
+pstay <- ggplot(data=staydf, aes(x=stay, y=deltay, colour=val)) + geom_line() + geom_point(data=df4, aes(x=stay, y=y-mean(y), colour=SLval4))
+pstay
+
+coplot(y~stay|SLval4, df4)
+```
+
+We notice there is a point of value = "A" outling and might have huge leverage. Lets remove it and refit the model
+
+```{r, echo=FALSE, message=FALSE}
+df6 <- df4[!(df4$stay>250),]
+sl6 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + sla_id:age + sla_id:degree + age:degree + stay:SLval4, df6)
+summary(sl6)
+betint6 <- step(sl6)
+summary(betint6)
+
+#visualize
+x <- 0:300
+ya <- (0.03283 - 0.04271) * x + 0.59180
+yb <- 0.03283 * x
+yn <- (0.03283 - 0.14879) * x + 4.49134
+yw <- (0.03283 - 0.08677) * x + 4.17165
+staydf6 <- data.frame(stay = rep(x, 4), deltay <- c(ya, yb, yn, yw), val=rep(c("A", "B", "N", "W"), each=301))
+pstay6 <- ggplot(data=staydf, aes(x=stay, y=deltay, colour=val)) + geom_line() + geom_point(data=df6, aes(x=stay, y=y-mean(y), colour=SLval4))
+pstay6
+coplot(y~stay|SLval4, df6)
+```
+We found the point has negligible effects, so we will maintain it.
+
+
+5. effect of sla_id
+  5.1 For undergraduate degree
+    3.210456 - 0.250148 * age
+  5.1 For master degree
+    3.210456 - 0.250148 * age + 2.392557
+  5.2 For Doctor degree
+    3.210456 - 0.250148 * age + 3.983903 
+
+Lets visulize changes of y due to degree, sla_id and age together with all other variables stay the same
+```{r, echo=FALSE, message=FALSE}
+# let x is age, set from 18 to 50
+x <- 18:50
+#for undergraduate
+yu1 <- (3.21046 -0.25015 * x) * 1
+yu2 <- (3.21046 -0.25015 * x) * 2
+yu3 <- (3.21046 -0.25015 * x) * 3
+yu4 <- (3.21046 -0.25015 * x) * 4
+yu5 <- (3.21046 -0.25015 * x) * 5
+
+#for master
+ym1 <- x * 0.52561 + (2.39256 * 1) - 16.28808 + (3.21046 -0.25015 * x) * 1
+ym2 <- x * 0.52561 + (2.39256 * 2) - 16.28808 + (3.21046 -0.25015 * x) * 2
+ym3 <- x * 0.52561 + (2.39256 * 3) - 16.28808 + (3.21046 -0.25015 * x) * 3
+ym4 <- x * 0.52561 + (2.39256 * 4) - 16.28808 + (3.21046 -0.25015 * x) * 4
+ym5 <- x * 0.52561 + (2.39256 * 5) - 16.28808 + (3.21046 -0.25015 * x) * 5
+# mas <- cbind(x,ym1,ym2,ym3,ym4,ym5)
+
+yd1 <- x * 0.34156 + (3.98390 * 1) -12.67931 + (3.21046 -0.25015 * x) * 1
+yd2 <- x * 0.34156 + (3.98390 * 2) -12.67931 + (3.21046 -0.25015 * x) * 2
+yd3 <- x * 0.34156 + (3.98390 * 3) -12.67931 + (3.21046 -0.25015 * x) * 3
+yd4 <- x * 0.34156 + (3.98390 * 4) -12.67931 + (3.21046 -0.25015 * x) * 4
+yd5 <- x * 0.34156 + (3.98390 * 5) -12.67931 + (3.21046 -0.25015 * x) * 5
+# doc <- cbind(x,yd1,yd2,yd3,yd4,yd5)
+id1 <- cbind(x, yu1, ym1, yd1)
+id2 <- cbind(x, yu2, ym2, yd2)
+id3 <- cbind(x, yu3, ym3, yd3)
+id4 <- cbind(x, yu4, ym4, yd4)
+id5 <- cbind(x, yu5, ym5, yd5)
+adidf <- as.data.frame(rbind(id1,id2,id3,id4,id5))
+adidf$id <- rep(c("id=1", "id=2", "id=3", "id=4", "id=5"), each=33)
+names(adidf) <- c("age", "undergraduate", "master", "doctor", "SLA_id")
+# ageplot <- as.data.frame(rbind(mas, doc))
+# ageplot$dg <- rep(c("master", "doctoral"), each=length(x)) 
+# names(ageplot) <- c("age", "id1", "id2", "id3","id4","id5", "degree")
+padi <- ggplot(data=adidf) + geom_line(aes(x=age, y=undergraduate, colour = "undergraduate")) + facet_grid(. ~ SLA_id) + geom_line(aes(x=age, y=master, colour="master")) + geom_line(aes(x=age, y=doctor, colour="doctor")) + labs(y="change in y")  + guides(colour=guide_legend(title= NULL))
+padi
+```
+
+6. effect of age
+  6.1 doctor degree
+    6.1.1 sla_id = 1: 0.341559-0.250148 = 0.091411 > 0
+    6.1.2 sla_id = 2-5: 0.341559 - 0.250148 * sla_id < 0
+  6.2 master degree
+    6.2.1 sla_id=1-2: 0.525614 - 0.250148 * sla_id  > 0
+    6.2.2 sla_id=3-5: 0.525614 - 0.250148 * sla_id  < 0
+
+#Result:
+This model explains 31.39% of variation in y. It contains 17 variables (including dummy variables). two main interaction groups are revealed: 1, stay length and values. 2. degree, age and identifications. This model indicating
+
+*Analyzing first interacting group shows
+
+1. Interestingly, stay length has negative impact on y within groups of people with values of "A", "W" and "N". While stay length has positive impact on y within group of people with values of "B". 
+2. Western values shows highest positive impact when people stay in US between 5.48653 and 48.12083 months, which constitutes `r sum(df4$stay >5.48653&df4$stay<48.12083)/nrow(df4)` of all our observations. And western value showed more positive impact on our y than asian value when the stay length is less than 81.24943 months, which consititutes `r sum(df4$stay >5.48653&df4$stay<48.12083)/nrow(df4)`
+of our all obervations.
+This tells us western values has most positive impact, especially more positive than asian values, on our y in most of our samples. 
+Try less complex model.
+
+*The second interacing group involves degree, age and identifications, analyzing it shows:
+
+1. in most cases, age is a negative factor on our y, except in groups of people with master degree and identification of 1 and 2 and group of people with doctoral degree with identification of 1. Which means if you are more asian identified and with advanced degree, the older you are, the more likely you are seeking for professional counseling. 
+2. More significantly, the more western you identify yourself, the age tend to have more negative impact on y. The higher degree you have, the more likely you are seeking for professional counseling. And interetingly, advanced degree tend to lower the rate of decressing of y due to age increasing. 
+3. Moreover, within group of people with undergraduate degree and at the same age, the more western they identified themself, the smaller y we get. And this difference increases along the age. in advanced degree, this trend changed. For example, in group of people with doctoral degree, during young age, younger than 30, the more western they identify themselves, the higher y they get. However, when age is bigger, they got less y instead. 
+
+*Also we observe married people has less y.
+  
 ```{r, echo=FALSE}
-summary(sl3)
+# lower <- lm(y~., df4)
+# lower2 <- lm(y~SLval4 + degree + stay, df4)
+# upper <- lm(y~.+.:., df4)
+# test <- step(lower2, scope=y~.*., direction = "forward", steps = 8)
+# teststep <- step(test)
+# summary(test)
+# BIC(test)
+# 
+# sl6 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + sla_id:degree + stay:SLval4, df4)
+# summary(sl6)
+# betint2 <- step(sl6)
+# summary(betint2)
+# BIC(betint2)
 ```
 
 

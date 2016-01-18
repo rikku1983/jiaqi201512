@@ -426,46 +426,54 @@ heatmap.2(corr, Rowv=NA, Colv=NA, scale = "none", na.rm=F, col=corr_palette, den
 ```
 
 
-
 # Fit regression
-## Full model
-```{r}
+1. Model without interaction
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 fm <- lm(y~., df4)
 summary(fm)
 fmstep <- step(fm)
 summary(fmstep)
+```
 
-# model with interactions
+2. Model with interactions
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 fmint <- lm(y~.*., df4)
 summary(fmint)
 fmintstep <- step(fmint)
-# vif(fmintstep)
-
-genderm <- lm(y~gender*., df4)
-summary(genderm)$adj.r.squared
-agem <- lm(y~age*., df4)
-summary(agem)$adj.r.squared
-degreem <- lm(y~degree*., df4)
-summary(degreem)$adj.r.squared
-staym <- lm(y~stay*., df4)
-summary(staym)$adj.r.squared
-maritalm <- lm(y~marital*., df4)
-summary(maritalm)$adj.r.squared
-religionm <- lm(y~religion*., df4)
-summary(religionm)$adj.r.squared
-slval4m <- lm(y~SLval4*., df4)
-summary(slval4m)$adj.r.squared
-slcom4m <- lm(y~SLcom4*., df4)
-summary(slcom4m)$adj.r.squared
-sla_idm <- lm(y~sla_id*., df4)
-summary(sla_idm)$adj.r.squared
+summary(fmintstep)
 ```
+
+Model with all possible interactions after backward selection, has much higher R squared but also much more predictors, and the design matrix is not full rank any more. So colinearity and multicolinearity is brought in. 
+Let's try less interaction. We will try just one variable interacting with all others to see if there would be any improvement of r squared.
+
+
+```{r, echo=FALSE, results='hide', message=FALSE}
+genderm <- lm(y~gender*., df4)
+agem <- lm(y~age*., df4)
+degreem <- lm(y~degree*., df4)
+staym <- lm(y~stay*., df4)
+maritalm <- lm(y~marital*., df4)
+religionm <- lm(y~religion*., df4)
+slval4m <- lm(y~SLval4*., df4)
+slcom4m <- lm(y~SLcom4*., df4)
+sla_idm <- lm(y~sla_id*., df4)
+single_var_int<-data.frame(full_without_int=summary(fm)$adj.r.squared, gender=summary(genderm)$adj.r.squared, age=summary(agem)$adj.r.squared, degree=summary(degreem)$adj.r.squared, stay=summary(staym)$adj.r.squared, marital=summary(maritalm)$adj.r.squared, religion=summary(religionm)$adj.r.squared, SLval4=summary(slval4m)$adj.r.squared, SLcom4=summary(slcom4m)$adj.r.squared, sla_id=summary(sla_idm)$adj.r.squared)
+rownames(single_var_int) <- "adj_r_squared"
+```
+
+```{r, echo=FALSE, message=FALSE}
+single_var_int
+```
+
 We found, when we include interactions of the following 4 variables to all others, we got dramatically boosted the adjusted r squared.
 degree
 stay
 SLval4
 sla_id
-```{r}
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 fmint2 <- lm(y~stay*. + degree*. + SLval4*. + sla_id*., df4)
 summary(fmint2)
 fmint2step <- step(fmint2)
@@ -482,7 +490,12 @@ fmint4 <- lm(y~stay*. + degree*. + sla_id*., df6)
 summary(fmint4)
 fmint4step <- step(fmint4)
 summary(fmint4step)
+```
 
+The following model is from data without SLcom4
+First we try all combinations of the 4 variables interacting with all others from the 4 listed above which gave us best improved adjusted r squared. And all full models are backward selected.
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 ##
 mstay <- lm(y~. + stay:., df6)
 summary(mstay)
@@ -554,9 +567,8 @@ m6 <- lm(y~. + sla_id:. + SLval4:., df6)
 summary(m6)
 m6step <- step(m6)
 summary(m6step)
-
-
 ```
+
 All models we have 
 fmstep: full model without interactions
     all following are with interactions
@@ -568,15 +580,31 @@ mstaystep: with stay interacting with all others
 mdgstep: with degree interacting with all others
 midstep: with sla_id interacting with all others
 mvalstep: with SLval4 interacting with all others
-m_staystep: with stay interacting with all others
-m_dgstep: with degree interacting with all others
-m_idstep: with sla_id interacting with all others
-m_valstep: with SLval4 interacting with all others
+m_staystep: without stay interacting with all others
+m_dgstep: without degree interacting with all others
+m_idstep: without sla_id interacting with all others
+m_valstep: without SLval4 interacting with all others
+m1step: with degree and stay interacting with all others
+m2step: with degree and sla_id interacting with all others
+m3step: with degree and SLval4 interacting with all others
+m4step: with stay and SLval4 interacting with all others
+m5step: with stay and sla_id interacting with all others
+m6step: with SLval4 and sla_id interacting with all others
+sl1step: with sla_id interacting with degree, s
+              tay interacting with SLval4
+              degree interacting with age
+              SLval4 interacting with marital
+              stay interacting with sla_id
+              age interacting with stay
+              age interacting with sla_id
+sl2step: forward select from sl1step
+sl3: remove alias variable from sl2step
+sl4: remove triple interacting variable
 
 ## Compare all models
-```{r}
-aic <- AIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep)
-bic <- BIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep)
+```{r, echo=FALSE, results='hide', message=FALSE}
+aic <- AIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep, m1step, m2step, m3step, m4step, m5step, m6step)
+bic <- BIC(fmstep, fmintstep, fmint2step, fmint3step, fmint4step, mstaystep, mdgstep, midstep, mvalstep, m_staystep, m_dgstep, m_idstep, m_valstep, m1step, m2step, m3step, m4step, m5step, m6step)
 compare <- cbind(aic, bic$BIC)
 compare$adj.rsqr <- rep(0, nrow(bic))
 compare$adj.rsqr[1] <- summary(fmstep)$adj.r.squared
@@ -592,20 +620,21 @@ compare$adj.rsqr[10] <- summary(m_staystep)$adj.r.squared
 compare$adj.rsqr[11] <- summary(m_dgstep)$adj.r.squared
 compare$adj.rsqr[12] <- summary(m_idstep)$adj.r.squared
 compare$adj.rsqr[13] <- summary(m_valstep)$adj.r.squared
-compare[order(compare$df),]
-
-coplot(y~sla_id|degree, df4)
-coplot(y~sla_id|gender, df4)
-coplot(y~sla_id|stay, df4)
-coplot(y~sla_id|SLval4, df4)
-coplot(y~sla_id|marital, df4)
-coplot(y~sla_id|SLcom4, df4)
-coplot(y~sla_id|religion, df4)
-coplot(y~sla_id|age, df4)
-
+compare$adj.rsqr[14] <- summary(m1step)$adj.r.squared
+compare$adj.rsqr[15] <- summary(m2step)$adj.r.squared
+compare$adj.rsqr[16] <- summary(m3step)$adj.r.squared
+compare$adj.rsqr[17] <- summary(m4step)$adj.r.squared
+compare$adj.rsqr[18] <- summary(m5step)$adj.r.squared
+compare$adj.rsqr[19] <- summary(m6step)$adj.r.squared
 ```
 
-According to all models above, I tried to build simpler model with several interactions
+```{r, echo=FALSE, message=FALSE}
+compare
+```
+
+
+So far we have tried different variables interacting with all others, which might bring many irrelevant interactions to compromise our model in BIC values. So what about smaller number of interactions?
+According to all models above, I picked following several interactions
 sla_id and degree
 stay and SLval4
 degree and age
@@ -613,48 +642,58 @@ SLval4 and marital
 stay and sla_id
 age and stay
 age and sla_id
-```{r}
+All of them are maintained in many of above models after backward selection.
+
+```{r, echo=FALSE, results='hide', message=FALSE}
 sl1 <- lm(y~. + sla_id:degree + stay:SLval4 + degree:age + SLval4:marital + stay:sla_id + age:stay + age:sla_id, df4)
 summary(sl1)
 sl1step<-step(sl1)
 summary(sl1step)
 
 compare <- rbind(compare, c(21,AIC(sl1step), BIC(sl1step), summary(sl1step)$adj.r.squared))
-rownames(compare)[14] <- "sl1step"
+rownames(compare)[20] <- "sl1step"
 ```
 
-Try forward selection to see if we can get any more significant interactions
-```{r}
-sl2step <- step(sl1step, fmint$call, direction="forward")
+This new model is better than ones with similar number of variables. Try forward selection to see if we can get any more significant interactions
+```{r, echo=FALSE, results='hide', message=FALSE}
+sl2step <- step(sl1step, lm(y~.*., df6)$call, direction="forward")
 summary(sl2step)
 compare <- rbind(compare, c(33,AIC(sl2step), BIC(sl2step), summary(sl2step)$adj.r.squared))
-rownames(compare)[15] <- "sl2step"
+rownames(compare)[21] <- "sl2step"
 ```
 sl2step looks the best so far, we will adopt this model and further improve it.
 there is a question with this model that the design matrix is not full rank. The variable degreeDoc interacting marital status is linear combination of other variables. So lets remove one variable to make it full rank.
-```{r}
+
+```{r, echo=FALSE, message=FALSE}
 alias(sl2step)
-doc <- as.numeric(df4$degree=="doctoral")
-mar <- as.numeric(df4$marital=="married")
-doc_mar <- doc * mar
-mas <- as.numeric(df4$degree=="master")
-mas_mar <- mas * mar
-cbind(doc, mas, mar, mas_mar, doc_mar,mar-mas_mar)
 ```
 so basically the original variable marital is the same as degreeDocmarital + degreeMasmarital, lets remove marital variable
-```{r}
-sl3 <- lm(y ~ gender + age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay + age:degree:sla_id, df4)
+```{r, echo=FALSE, results='hide', message=FALSE}
+sl3 <- lm(y ~ age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay + age:degree:sla_id, df4)
 summary(sl3)
 compare <- rbind(compare, c(33,AIC(sl3), BIC(sl3), summary(sl3)$adj.r.squared))
-rownames(compare)[16] <- "sl3"
+rownames(compare)[22] <- "sl3"
 ```
 remove 3 variable interaction
-```{r}
-sl4 <- lm(y ~ gender + age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay, df4)
+```{r, echo=FALSE, results='hide', message=FALSE}
+sl4 <- lm(y ~ age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay, df4)
 summary(sl4)
 compare <- rbind(compare, c(31 ,AIC(sl4), BIC(sl4), summary(sl4)$adj.r.squared))
-rownames(compare)[17] <- "sl4"
+rownames(compare)[23] <- "sl4"
+
+sl5 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + age:sla_id + sla_id:degree + age:degree + stay:SLval4, df4)
+summary(sl5)
+sl5step <- step(sl5)
+summary(sl5step)
+compare <- rbind(compare, c(18 ,AIC(sl5step), BIC(sl5step), summary(sl5step)$adj.r.squared))
+rownames(compare)[24] <- "sl5step"
+
 ```
+Compare all models, model sl3 stands out
+```{r, echo=FALSE}
+kable(compare)
+```
+The best model is based on the criterion above is sl3.
 
 
 more
@@ -690,6 +729,83 @@ summary(fitwEng)
 fitwEng2 <- step(fitwEng)
 summary(fitwEng2)
 ```
+
+# More parsimoneous model
+Check the best model we chose. Too many interactions are making interpretation extremely hard and multicolinearity very severe, which means the variance is dramatically inflated and the coefficient is not stable. Considering the small sample size in this case, 110. too many variables are reducing the degree of freedom which means we are probably overfitting. However, there must be interactions occuring because including interactions are boosting our adjusted r squared without increasing BIC very much. The AIC is even dropping. So we believe there are interactions but we need to pinpoint several most significant interactions to add to the model without losing interprebility.  
+In order to reduce multicolinearity also, let's transform and center the numeric variable and change the levels of categorical variable to make sure the reference level is the most abundant one
+```{r}
+df7 <- df4
+df7$gender <- relevel(df7$gender, "woman")
+df7$age <- scale(log(df7$age), scale=F)
+df7$degree <- relevel(df7$degree, "doctoral")
+df7$stay <- scale((df7$stay)^(1/3), scale=F)
+df7$SLval4 <- relevel(df7$SLval4, "B")
+df7$SLcom4 <- relevel(df7$SLcom4, "B")
+```
+Two things have been done:
+1. relevel all categorical variable to make most abundant level as reference level
+2. Transformation and centering
+stay is centered after cube root
+age is centered after log
+
+Now lets fit some model
+```{r}
+l1 <- step(lm(y~., df7))
+# Because we are interested more in SLval and our response, so lets and interacting terms involving SLval4
+lval <- step(lm(y~. + SLval4:stay + SLval4:religion, df7))
+lcom <- step(lm(y~. + SLcom4:., df7))
+lvc <- step(lm(y~. + SLval4:degree + SLcom4:degree, df7))
+l2 <- step(lm(y ~ age + degree + stay + SLval4 + sla_id + degree:sla_id + stay:SLval4 + age:degree + stay:sla_id + age:sla_id + gender:SLval4 + age:marital + degree:marital + marital:SLval4 + degree:stay, df7))
+summary(l2)
+AIC(l2)
+BIC(l2)
+
+lfor <- step(lval, lm(y~.*., df7)$call, direction = "forward")
+l3 <- step(lm(y~.+ sla_id:., df7))
+alias(l3)
+
+
+x1 <- step(lm(y~.+gender:.,df7))
+summary(x1)
+x2 <- step(lm(y~.+age:.,df7))
+summary(x2)
+x3 <- step(lm(y~.+degree:.,df7))
+summary(x3)
+x4 <- step(lm(y~.+stay:.,df7))
+summary(x4)
+x5 <- step(lm(y~.+marital:.,df7))
+summary(x5)
+x6 <- step(lm(y~.+religion:.,df7))
+summary(x6)
+x7 <- step(lm(y~.+SLval4:.,df7))
+summary(x7)
+x8 <- step(lm(y~.+SLcom4:.,df7))
+summary(x8)
+x9 <- step(lm(y~.+sla_id:.,df7))
+summary(x9)
+
+x10 <- lm(y~.+age:sla_id+sla_id:degree+sla_id:SLcom4+SLcom4:SLval4+age:degree+degree:stay+stay:SLval4, df7)
+summary(x10)
+x10step <- step(x10)
+summary(x10step)
+
+x11 <- lm(y~age + degree + stay + marital + SLval4 + sla_id + age:sla_id + sla_id:degree + sla_id:SLcom4 + age:degree + degree:stay + stay:SLval4, df7)
+summary(x11)
+x11step <- step(x11)
+summary(x11step)
+
+x12 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + age:sla_id + sla_id:degree + age:degree + stay:SLval4, df4)
+summary(x12)
+x12step <- step(x12)
+summary(x12step)
+```
+Try leaps package
+```{r}
+library(leaps)
+# test <- regsubsets(y~.*., df4, nvmax=5, really.big=T)
+
+```
+dosent work
 
 Reference
 1. Jacob Cohen (1988). Statistical Power Analysis for the Behavioral Sciences (second ed.). Lawrence Erlbaum Associates.
