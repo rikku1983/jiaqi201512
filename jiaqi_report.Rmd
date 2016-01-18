@@ -4,6 +4,8 @@ author: "Li Sun"
 date: "October 12, 2015"
 output: pdf_document
 ---
+# Brief introduction
+This is data analysis by multiple linear regression on small scale survey on how the asian or western views affecting the propensity of seeking professional counselling. 
 
 # Load packages
 load necessary packages
@@ -19,9 +21,8 @@ suppressWarnings(library(car))
 suppressWarnings(library(knitr))
 ```
 
-
 # Load data
-Data comes from Dr. Jiaqi Li in csv file.
+Data comes from Dr. Jiaqi Li in csv file format.
 ```{r, echo=FALSE, message=FALSE}
 # setwd("C:/Users/user/Dropbox/jiaqi")
 # setwd("/home/li/Dropbox/jiaqi")
@@ -32,9 +33,9 @@ names(df) <- c("gender", "age", "degree", "stay","marital","religion", "sla1", "
 ```
 
 # Data cleaning
-1. variables needed to be edited: 'age', 'stay'
-There is one value which is "adult", we change that one to 18, according to the info that he has 89 TOFLE score and stayed in US for 18 month. We change this to 25, which is average age of F1 student who came here after undergraduate (23.5) and master study(26.5). There is also another invalid entry which is 3. We believe it is imput error. and change it to 30
-For stay, there is an entry which is "whole life", we change that to 12 * age.
+1. variables needed to be edited: 'age', 'stay'.
+* There is one value which is "adult", we change that one to 18, according to the info that he has 89 TOFLE score and stayed in US for 18 month. We change this to 25, which is average age of F1 student who came here after undergraduate (23.5) and master study(26.5). There is also another invalid entry which is 3. We believe it is imput error. and change it to 30
+* For stay, there is an entry which is "whole life", we change that to 12 * age.
 
 ```{r, echo=FALSE, results='hide', message=FALSE}
 ################### age
@@ -62,8 +63,7 @@ df$stay[wlidx] <- df$age[wlidx] * 12
 ```
 
 2. Construct new variable "SL-ASIA values score" ("SLval"), based on the SUINN-LEW ASIA SCALE (question 22~23)
-coding:
-1. Do not believe ...... 5. strongly believe
+coding: 1:Do not believe ...... 5:strongly believe
 ```{r, echo=FALSE, message=FALSE}
 df$SLval <- rep(0, nrow(df))
 for(i in 1:nrow(df)){
@@ -88,8 +88,7 @@ df$SLval4 <- gsub("[()]", "", df$SLval)
 table(df$SLval4)
 ```
 
-3. Construct new variable "SL-ASIA behavioral competencies score" ("SLcom"), based on the SUINN-LEW ASIA SCALE (question 24~25)
-1. do not fit ......  5. fit very well
+3. Construct new variable "SL-ASIA behavioral competencies score" ("SLcom"), based on the SUINN-LEW ASIA SCALE (question 24~25): 1:do not fit ......  5:fit very well
 ```{r, echo=FALSE, message=FALSE}
 df$SLcom <- rep(0, nrow(df))
 for(i in 1:nrow(df)){
@@ -117,11 +116,11 @@ table(df[,c(23,25)])
 
 4. Construct new variable "SL-ASIA self-identity score" ("sla_id"), based on the SUINN-LEW ASIA SCALE (question 26)
 coding
-1. I consider myself basically an Asian person (e.g., Chinese, Japanese, Korean, Vietnamese, etc.). Even though I live and work in America, I still view myself basically as an Asian person.
-5. I consider myself basically as an American. Even though I have an Asian background and characteristics, I still view myself basically as an American.
-7. I consider myself as an Asian-American, although deep down I always know I am an Asian.
-9. I consider myself as an Asian-American, although deep down, I view myself as an American first.
-10. I consider myself as an Asian-American. I have both Asian and American characteristics, and I view myself as a blend of both.
+  + 1. I consider myself basically an Asian person (e.g., Chinese, Japanese, Korean, Vietnamese, etc.). Even though I live and work in America, I still view myself basically as an Asian person.
+  + 5. I consider myself basically as an American. Even though I have an Asian background and characteristics, I still view myself basically as an American.
+  + 7. I consider myself as an Asian-American, although deep down I always know I am an Asian.
+  + 9. I consider myself as an Asian-American, although deep down, I view myself as an American first.
+  + 10. I consider myself as an Asian-American. I have both Asian and American characteristics, and I view myself as a blend of both.
 
 We found `r sum(df$sla_id==1, na.rm=T)/sum(!is.na(df$sla_id))` responders chose 1 and there is one value "2" which is not included in coding rubric and we will change it to 9 because 9 is missing here. And as suggested we will treat this variable as numeric. From 1 to 5, 1 is very asian and 5 is very american identification.
 
@@ -135,10 +134,11 @@ df$sla_id <- as.numeric(df$sla_id)
 5. Construct new val indicating individual attitude to counseling.
 for all original question
 values:
-1. strongly disgree
-2. disgree
-3. agree
-4. strongly agree
+  + 1. strongly disgree
+  + 2. disgree
+  + 3. agree
+  + 4. strongly agree
+
 Calculating based on
 Whittlesey, V. (2001). Diversity activities for psychology. Boston: Allyn and
 Bacon, and Fischer, E., and Farina, A. (1995). Attitudes toward seeking psychological
@@ -159,7 +159,9 @@ summary(df$y)
 
 # Exploratory data analysis
 ## Visualize the relationship among the 3 scores from "Suinn-Lew Asian Self Identity Acculturation"
+
 1. Visualize the relationship between different grouping methods of individuals acculturation
+
 ```{r, echo=FALSE, message=FALSE}
 ### Based on 7 groups
 x <- data.frame(val=factor(df$SLval, levels=c("A", "(A)", "N", "B", "(B)", "(W)", "W")), com=factor(df$SLcom, levels=c("A", "(A)", "N", "B", "(B)", "(W)", "W")), id = df$sla_id)
@@ -204,8 +206,11 @@ summary(lmid)
 #Only SLval4 shows significant result
 TukeyHSD(aovval)
 ```
-3D plot here:
-https://plot.ly/~rikku1983/35/visualization-of-acculturation-and-attitude-for-seeking-professional-counseling/?share_key=0poL7ODE8G2eg9itKxkbs6
+
+The only significant result is difference of response between people with asian value and western value
+
+(3D plot here:
+https://plot.ly/~rikku1983/35/visualization-of-acculturation-and-attitude-for-seeking-professional-counseling/?share_key=0poL7ODE8G2eg9itKxkbs6)
 
 ## Making data ready for modeling
 1. Missing values
@@ -271,12 +276,19 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
   text(0.5, 0.5, txt, cex = cex.cor * r+1)
 }
 pairs(df4, panel=panel.smooth, diag.panel = panel.hist, lower.panel = panel.cor)
+```
+
+```{r echo=FALSE, message=FALSE}
 par(mfrow=c(2,2))
 hist(df4$age)
 hist(df4$stay)
 hist(log(df4$age))
 hist(df4$stay^(1/3))
+```
 
+After transformation of two numeric variables: stay and age
+
+```{r echo=FALSE, message=FALSE}
 df5 <- mutate(df4, stay=stay^(1/3), age=log(age))
 pairs(df5, panel=panel.smooth, diag.panel = panel.hist, lower.panel = panel.cor)
 ```
@@ -287,18 +299,23 @@ Among our predictors, we observe highest correlations between age and marital st
 Due to the correlations showed in this figuer is just pearson correlation which might not be appropriate for categorical data. So we will build the effect size matrix by using more appropriate measure for different type of data.
 
 for numeric vs numeric: Pearson's correlation is used, absolute value of this r is categorized as followed, Effect size  r
-Small	      0.10
-Medium	    0.30
-Large	      0.50[1][2]
+
+
+
+Small	  |   Medium   | Large
+--------|------------|-------
+	0.10  |    0.30    |  0.5
 
 for numeric vs categorical: R square from one-way ANOVA is taken and the square root value is used so that we can compare it to other effect size
 
 
 for categorical vs categorical: Cramer's V
-df*  small	medium	large
-1	     .10	   .30	  .50
-2	     .07	   .21	  .35
-3	     .06	   .17	  .29
+
+df*   |small	|medium	|large
+------|-------|-------|-------
+1	    | .10	  | .30	  |.50
+2	    | .07	  | .21	  |.35
+3	    | .06	  | .17	  |.29
 
 ```{r, echo=FALSE, message=FALSE}
 corr<-df4[1:10,];corr[,]<-0
@@ -310,7 +327,7 @@ for(i in 1:(ncol(df4)-1)){
   for(j in (i+1):ncol(df4)){
   type <- (class(df4[,i])=="numeric") + (class(df4[,j])=="numeric")
   if(type==0){
-    corr[i,j] <- cramersV(df4[,i], df4[,j])
+    corr[i,j] <- suppressWarnings(cramersV(df4[,i], df4[,j]))
   }
   else if(type==1){
     if(class(df4[,i])=="numeric"){
@@ -342,10 +359,10 @@ heatmap.2(corr, Rowv=NA, Colv=NA, scale = "none", col=corr_palette, dendrogram="
 # Fit regression
 1. Model without interaction
 
-```{r, echo=FALSE, results='hide', message=FALSE}
+```{r, echo=FALSE, message=FALSE}
 fm <- lm(y~., df4)
-summary(fm)
-noint <- step(fm)
+# summary(fm)
+noint <- step(fm, trace = FALSE)
 summary(noint)
 ```
 
@@ -365,15 +382,21 @@ Let's try less interaction. We will try just one variable interacting with all o
 
 ```{r, echo=FALSE, message=FALSE}
 sl5 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + sla_id:age + sla_id:degree + age:degree + stay:SLval4, df4)
-summary(sl5)
-betint <- step(sl5)
+# summary(sl5)
+betint <- step(sl5, trace = FALSE)
 summary(betint)
 ```
 
 All models we have 
-fmstep: full model without interactions
-    all following are with interactions
-fmintstep: with all possible interaction
+
+Model name | Description
+-----------|---------------------------------  
+fmstep:    | full model without interactions
+-----------|---------------------------------
+fmintstep: | with all possible interactions
+-----------|---------------------------------
+betint:    | with some interactions
+
 
 ## Compare all models
 
@@ -401,18 +424,19 @@ Final formula
 y ~ degree + stay + marital + SLval4 + sla_id + sla_id:age + degree:sla_id + degree:age + stay:SLval4
 
 This indicates
+
 1. If a chinese student with age 20, undergraduate degree, just arrive US, not married, got "B" as his value, and got "1" in identification, his altitude for seeking professional counseling is predicted to be 27.2091 + 3.21046 - 0.25015 * 20 = 25.41656
 
 2. Effect of degree
 Compare degrees assume all other parameters are the same
-  2.1 the difference of y between master degree and undergraduate degree:
+  + 2.1 the difference of y between master degree and undergraduate degree:
     -16.28808 + 2.39256 * sla_id + 0.52561 * age
-  2.2 the difference of y between doctor degree and undergraduate degree:
-    -12.67931 + 3.98390 * sla_id + 0.34156 * age
+  + 2.2 the difference of y between doctor degree and undergraduate degree: -12.67931 + 3.98390 * sla_id + 0.34156 * age
+  
 Visualize it
 
 ```{r echo=FALSE, message=FALSE}
-range(df4$age)
+# range(df4$age)
 # let x is age, set from 18 to 50
 x <- 18:50
 ym1 <- x * 0.52561 + 2.39256 -16.28808
@@ -444,21 +468,21 @@ page
 ```
 
 2. Effect of stay length(in month) in US
-  3.1 For people with Asian Value (got "A" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.01368
-  3.2 For people with Bicultural value (got "B" from question 22 and 23): every one more month people has stayed in US will increase the y value by 0.03273
-  3.3 For people with Western value (got "W" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.0539
-  3.4 For people with neither value (got "N" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.116628
+  + 3.1 For people with Asian Value (got "A" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.01368
+  + 3.2 For people with Bicultural value (got "B" from question 22 and 23): every one more month people has stayed in US will increase the y value by 0.03273
+  + 3.3 For people with Western value (got "W" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.0539
+  + 3.4 For people with neither value (got "N" from question 22 and 23): every one more month people has stayed in US will decrease the y value by 0.116628
 
 
 
 3. married people tend to be less willing for seeking professional counseling, because when all other variable are the same, married people would have 1.56708 less in y value
 
 4. Compare different values
-  4.1 the difference of y between W and A:
+  + 4.1 the difference of y between W and A:
     3.487880 - 0.040218 * stay
-  4.2 the difference of y between B and A:
+  + 4.2 the difference of y between B and A:
     -0.685641 + 0.046410 * stay
-  4.3 the difference of y between N and A:
+  + 4.3 the difference of y between N and A:
     3.832049 - 0.102949 * stay
     
 visualize effect of stay and values on changes of y comparing with y given value is "B" and stay=0,  and all other variables are the same
@@ -478,11 +502,11 @@ coplot(y~stay|SLval4, df4)
 
 We notice there is a point of value = "A" outling and might have huge leverage. Lets remove it and refit the model
 
-```{r, echo=FALSE, message=FALSE}
+```{r, echo=FALSE, result='hide', message=FALSE}
 df6 <- df4[!(df4$stay>250),]
 sl6 <- lm(y~degree + stay + marital + SLval4 + sla_id + SLcom4 + sla_id:age + sla_id:degree + age:degree + stay:SLval4, df6)
-summary(sl6)
-betint6 <- step(sl6)
+# summary(sl6)
+betint6 <- step(sl6, trace = FALSE)
 summary(betint6)
 
 #visualize
@@ -494,20 +518,25 @@ yw <- (0.03283 - 0.08677) * x + 4.17165
 staydf6 <- data.frame(stay = rep(x, 4), deltay <- c(ya, yb, yn, yw), val=rep(c("A", "B", "N", "W"), each=301))
 pstay6 <- ggplot(data=staydf, aes(x=stay, y=deltay, colour=val)) + geom_line() + geom_point(data=df6, aes(x=stay, y=y-mean(y), colour=SLval4))
 pstay6
+```
+
+```{r echo=FALSE}
 coplot(y~stay|SLval4, df6)
 ```
+
 We found the point has negligible effects, so we will maintain it.
 
 
 5. effect of sla_id
-  5.1 For undergraduate degree
+  + 5.1 For undergraduate degree
     3.210456 - 0.250148 * age
-  5.1 For master degree
+  + 5.1 For master degree
     3.210456 - 0.250148 * age + 2.392557
-  5.2 For Doctor degree
+  + 5.2 For Doctor degree
     3.210456 - 0.250148 * age + 3.983903 
 
 Lets visulize changes of y due to degree, sla_id and age together with all other variables stay the same
+
 ```{r, echo=FALSE, message=FALSE}
 # let x is age, set from 18 to 50
 x <- 18:50
@@ -548,12 +577,12 @@ padi
 ```
 
 6. effect of age
-  6.1 doctor degree
-    6.1.1 sla_id = 1: 0.341559-0.250148 = 0.091411 > 0
-    6.1.2 sla_id = 2-5: 0.341559 - 0.250148 * sla_id < 0
-  6.2 master degree
-    6.2.1 sla_id=1-2: 0.525614 - 0.250148 * sla_id  > 0
-    6.2.2 sla_id=3-5: 0.525614 - 0.250148 * sla_id  < 0
+  + 6.1 doctor degree
+    + 6.1.1 sla_id = 1: 0.341559-0.250148 = 0.091411 > 0
+    + 6.1.2 sla_id = 2-5: 0.341559 - 0.250148 * sla_id < 0
+  + 6.2 master degree
+    + 6.2.1 sla_id=1-2: 0.525614 - 0.250148 * sla_id  > 0
+    + 6.2.2 sla_id=3-5: 0.525614 - 0.250148 * sla_id  < 0
 
 #Result:
 This model explains 31.39% of variation in y. It contains 17 variables (including dummy variables). two main interaction groups are revealed: 1, stay length and values. 2. degree, age and identifications. This model indicating
@@ -561,7 +590,7 @@ This model explains 31.39% of variation in y. It contains 17 variables (includin
 *Analyzing first interacting group shows
 
 1. Interestingly, stay length has negative impact on y within groups of people with values of "A", "W" and "N". While stay length has positive impact on y within group of people with values of "B". 
-2. Western values shows highest positive impact when people stay in US between 5.48653 and 48.12083 months, which constitutes `r sum(df4$stay >5.48653&df4$stay<48.12083)/nrow(df4)` of all our observations. And western value showed more positive impact on our y than asian value when the stay length is less than 81.24943 months, which consititutes `r sum(df4$stay >5.48653&df4$stay<48.12083)/nrow(df4)`
+2. Western values shows highest positive impact when people stay in US between 5.48653 and 48.12083 months, which constitutes `r sum(df4$stay >5.48653&df4$stay<48.12083)/nrow(df4)` of all our observations. And western value showed more positive impact on our y than asian value when the stay length is less than 81.24943 months, which consititutes `r sum(df4$stay <81.24931)/nrow(df4)`
 of our all obervations.
 This tells us western values has most positive impact, especially more positive than asian values, on our y in most of our samples. 
 Try less complex model.
